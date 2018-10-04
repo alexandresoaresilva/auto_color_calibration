@@ -14,19 +14,14 @@ function I_corrected = calibration_routine(M, I)
     I_corrected = [R, G, B];
     I_corrected = uint8(reshape(I_corrected(:), height, width, 3));
     
-    
     % only applied to pixels with negative values, not all pixels
     function color_channel = correct_negative_intensities(color_channel)
         zero_i = find(color_channel<0);
-        %color_channel(zero_i) = 0;
         minR = min(color_channel);
         maxR = max(color_channel);
-        
         color_channel(zero_i) =...
             (color_channel(zero_i) - minR)./(maxR - minR).*255;
-
 %         color_channel =...
 %             (color_channel - minR)./(maxR - minR).*255;   
-
     end
 end
