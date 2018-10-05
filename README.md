@@ -8,15 +8,15 @@ Using an image of a Macbeth color checker (24 colors) under the same light condi
 
 3. You can choose different things to do with the generated matrix: 
   
-  3.1. batch process a folder
+    3.1. batch process a folder
   
-  3.2. color calibrate the captured checker itself
+    3.2. color calibrate the captured checker itself
   
-  3.3. color calibrate a file
+    3.3. color calibrate a file
   
-  3.4. save checker file for later use
+    3.4. save checker file for later use
   
-  3.5. Still missing : save the transformation matrix.
+    3.5. Still missing : save the transformation matrix.
 
 4. It calculates RMS error, among other distance measures, from the original reference values and the calibrated ones.
 
