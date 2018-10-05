@@ -11,7 +11,6 @@ classdef calibGui  < handle
         color_calibrate                 matlab.ui.Figure
         normalized_or_not_text          matlab.ui.control.Label
         normalized_explanat_txt         matlab.ui.control.Label
-         
         yesButton                       matlab.ui.control.Button
         noButton                        matlab.ui.control.Button
         make_selection                  matlab.ui.control.Label
@@ -206,7 +205,7 @@ classdef calibGui  < handle
                 calib_file_path = pwd;
                 text_diag = calib_file_path;
            
-                width_diag = 7*length(text_diag);
+                width_diag = 10*length(text_diag);
                 height_diag = 100;
                 x_pos = round( (calibGui.screen_res(1) - width_diag/2)/2 );
                 bottom_pos = round( (calibGui.screen_res(2) - height_diag/2)/2 );
@@ -220,24 +219,27 @@ classdef calibGui  < handle
                 cd(older_folder)
             end
         end
+        
         % Button pushed function: batchprocessafolderButton
         function calibGui = batchprocessafolderButtonPushed(calibGui, event)
             folder_path = uigetdir(pwd);
-            old_folder = cd(folder_path );
-            calibGui.files_extension = 'png';
-            calibGui.img_folder = cd(folder_path );
-            
-            calibGui = save_file_names_in_folder(calibGui);
 
-            mkdir calibrated;            
-            for img_i=1:size(calibGui.fileNames_inFolder,1)
-                I_name = deblank(calibGui.fileNames_inFolder_char(img_i,:));
-                new_img = imread(I_name);
-                
-                calib_img = calibration_routine(calibGui.transform_3x3_matrix, new_img);
-                imwrite(calib_img,['calibrated\calib_', I_name]);
+            if ischar(folder_path)
+                old_folder = cd(folder_path );
+                calibGui.files_extension = 'png';
+                calibGui.img_folder = cd(folder_path );
+                calibGui = save_file_names_in_folder(calibGui);
+
+                mkdir calibrated;            
+                for img_i=1:size(calibGui.fileNames_inFolder,1)
+                    I_name = deblank(calibGui.fileNames_inFolder_char(img_i,:));
+                    new_img = imread(I_name);
+                    
+                    calib_img = calibration_routine(calibGui.transform_3x3_matrix, new_img);
+                    imwrite(calib_img,['calibrated\calib_', I_name]);
+                end
+                cd(old_folder);
             end
-            cd(old_folder);
         end
 
         function calibGui = save_file_names_in_folder(calibGui)
@@ -284,7 +286,7 @@ classdef calibGui  < handle
            
            text_diag = calib_folder;
            
-           width_diag = 7*length(text_diag);
+           width_diag = 10*length(text_diag);
            height_diag = 100;
            x_pos = round( (calibGui.screen_res(1) - width_diag/2)/2 );
            bottom_pos = round( (calibGui.screen_res(2) - height_diag/2)/2 );
@@ -296,25 +298,44 @@ classdef calibGui  < handle
         end
     
         function calibGui = savecheckerforlateruseButtonPushed(calibGui,event)
-           older_folder = cd(calibGui.checker_path);
+            older_folder = cd(calibGui.checker_path);
+            mkdir calibrated
+            cd calibrated;
+            calib_folder = 0;
+            calib_folder = uigetdir(pwd);
+            if ischar(calib_folder)
+                %calib_folder = pwd;
+                calib_img = calibGui.calibrated_img;
+                file_name_orig = calibGui.img_name;
+                file_name = ['calib_', calibGui.img_name];
+                file_name2 = [calib_folder,'\',file_name];
 
-           calib_folder = pwd;
-           calib_img = calibGui.calibrated_img;
-           file_name = ['calib_', calibGui.img_name];
-           M = calibGui.transform_3x3_matrix;
-           imwrite(calibGui.calibrated_img, file_name);
+                M_name_txt = ['M_transf_matrix',file_name, '.txt'];
+                M_name_mat = ['M_transf_matrix',file_name, '.mat'];
+                M_txt = [calib_folder,'\', M_name_txt];
+                M_mat = [calib_folder,'\', M_name_mat];
 
-           text_diag = calib_folder;
-           
-           width_diag = 10*length(text_diag);
-           height_diag = 100;
-           x_pos = round( (calibGui.screen_res(1) - width_diag/2)/2 );
-           bottom_pos = round( (calibGui.screen_res(2) - height_diag/2)/2 );
-            
-           d = dialog('Position',[x_pos bottom_pos width_diag height_diag],...
-               'Name',['checker file ', file_name, ' saved in']);
-           txt = uicontrol('Parent',d,'Style','text','FontSize',13,'Position',[20 20 width_diag-10 80],...
-               'String',text_diag);
+                imwrite(calibGui.calibrated_img, file_name2);
+                imwrite(calibGui.calibrated_img, file_name_orig);
+                M = calibGui.transform_3x3_matrix;
+                save(M_mat,'M');
+                fileID = fopen(M_txt,'w');
+                for i=1:3
+                    fprintf(fileID, [num2str(M(i,:)),'\n']);
+                end
+
+                text_diag = {calib_folder;file_name;M_name_txt;M_name_mat;};
+
+                width_diag = 10*length(text_diag{1});
+                height_diag = 28*length(text_diag);
+                x_pos = round( (calibGui.screen_res(1) - width_diag/2)/2 );
+                bottom_pos = round( (calibGui.screen_res(2) - height_diag/2)/2 );
+                file_name = [file_name, ', M_3x3_transf_matrix (.txt & .mat)'];
+                d = dialog('Position',[x_pos bottom_pos width_diag height_diag],...
+                   'Name',['checker ', file_name, ' saved in']);
+                txt = uicontrol('Parent',d,'Style','text','FontSize',13,'Position',[20 35 width_diag-10 height_diag-10],...
+                   'String',text_diag);
+            end
             cd(older_folder)            
         end
     
@@ -363,7 +384,12 @@ classdef calibGui  < handle
                 calibGui.savecheckerforlateruseButton.ButtonPushedFcn = @(savecheckerforlateruseButton,event)calibGui.savecheckerforlateruseButtonPushed;
                 %calibGui.savecheckerforlateruseButton.ButtonPushedFcn = createCallbackFcn(calibGui, @savecheckerforlateruseButtonPushed, true);
                 calibGui.savecheckerforlateruseButton.Position = [155 15 163 22];
-                calibGui.savecheckerforlateruseButton.Text = 'save checker for later use'; 
+                calibGui.savecheckerforlateruseButton.Text = 'save checker/matrix'; 
+                error_fig = findall(0, 'Type', 'figure','Name','Errors');
+                if ~isempty(error_fig)
+                    error_fig.Visible = 'off';
+                    error_fig.Visible = 'on';
+                end
                 calibGui =  toggle_colorcalib_uifig_visibility(calibGui);
 %             else
 %                 % calibGui = create_color_calib_window_components(calibGui);

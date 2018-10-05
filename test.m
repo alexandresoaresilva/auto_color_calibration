@@ -5,8 +5,6 @@ clear, clc;
 a = calibGui;
 transform_3x3_matrix = a.transform_3x3_matrix;
 
-
-
 % 
 %     dist_from_ref_f = @(ref,samples)sqrt(sum( (ref-samples).^2,2) ); 
 %     
