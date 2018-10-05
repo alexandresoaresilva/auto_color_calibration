@@ -26,6 +26,11 @@ classdef calibGui  < handle
         calibratecheckerimgButton       matlab.ui.control.Button
         savecheckerforlateruseButton    matlab.ui.control.Button
         checker_path
+        checker_found
+        img_folder
+        fileNames_inFolder
+        fileNames_inFolder_char
+        files_extension
    end
    methods
        function calibGui = calibGui(calibGui)
@@ -42,14 +47,13 @@ classdef calibGui  < handle
                 %cd
                 cd(app.script_fullPath)
             end
-            
-            calibGui = create_color_calib_window_components(calibGui);
+            calibGui = create_color_calib_window(calibGui);
             if nargout == 0
                 clear calibGui
             end
        end
        
-       function calibGui = create_color_calib_window_components(calibGui)
+       function calibGui = create_color_calib_window(calibGui)
             dummy_screen_res = get(0,'screensize');
             calibGui.screen_res = dummy_screen_res(1,3:4);
             % Create color_calibrate
@@ -60,7 +64,10 @@ classdef calibGui  < handle
             calibGui.color_calibrate.Position(1) = round( (calibGui.screen_res(1) - calibGui.color_calibrate.Position(4)*1.5)/2 );
             calibGui.color_calibrate.Position(2) = round( (calibGui.screen_res(2) - calibGui.color_calibrate.Position(3))/2 );
             calibGui.color_calibrate.CloseRequestFcn = @(color_calibrate, event) calibGui.color_calibrateFig_Close_it;
-            
+            calibGui = create_color_calib_window_components(calibGui);
+       end
+       
+       function calibGui = create_color_calib_window_components(calibGui)            
             % Create make_selection
             calibGui.make_selection = uilabel(calibGui.color_calibrate);
             calibGui.make_selection.FontSize = 16;
@@ -138,19 +145,27 @@ classdef calibGui  < handle
                 delete(calibGui.noButton);
             end
         end
-    
+        function calibGui = calibrate_or_restart(calibGui)
+            calibGui = color_calibrate_image(calibGui);
+            if calibGui.checker_found
+                calibGui = create_calib_itself_components(calibGui);
+                calibGui =  toggle_colorcalib_uifig_visibility(calibGui);
+            else
+                warndlg({'Could not detect Macbeth checker. Please try again'});
+                calibGui = delete_2nd_dialog_elements(calibGui);
+                calibGui = create_color_calib_window_components(calibGui);
+            end
+        end
         % Button pushed function: yesButton
         function calibGui = yesButtonPushed(calibGui, event)
             calibGui.norm_color_calib = 1;
-            calibGui = color_calibrate_image(calibGui);
-            calibGui = create_calib_itself_components(calibGui)
+            calibGui = calibrate_or_restart(calibGui);
         end
 
         % Button pushed function: noButton
         function calibGui = noButtonPushed(calibGui, event)
             calibGui.norm_color_calib = 0;
-            calibGui = color_calibrate_image(calibGui);
-            calibGui = create_calib_itself_components(calibGui)
+            calibGui = calibrate_or_restart(calibGui);
         end
     
         function calibGui =  toggle_colorcalib_uifig_visibility(calibGui)
@@ -164,8 +179,11 @@ classdef calibGui  < handle
                 colorCalib(calibGui.color_calibrate_img, calibGui.img_name, calibGui.norm_color_calib);
             size_matrix = size(calibGui.transform_3x3_matrix);
             if ~(size_matrix(1) == 3) && ~(size_matrix(2) == 3)
-                warndlg({'Could not detect Macbeth checker. Please try again'});
-            end
+                %warndlg({'Could not detect Macbeth checker. Please try again'});
+                calibGui.checker_found = 0;
+            else
+                calibGui.checker_found = 1;
+            end              
         end
         
         % Button pushed function: calibrateafileButton
@@ -206,17 +224,50 @@ classdef calibGui  < handle
         function calibGui = batchprocessafolderButtonPushed(calibGui, event)
             folder_path = uigetdir(pwd);
             old_folder = cd(folder_path );
-            [img_names, img2]  = save_file_names_in_folder(folder_path,'png');
+            calibGui.files_extension = 'png';
+            calibGui.img_folder = cd(folder_path );
+            
+            calibGui = save_file_names_in_folder(calibGui);
 
             mkdir calibrated;            
-            for img_i=1:size(img_names,1)
-                I_name = deblank(img2(img_i,:));
+            for img_i=1:size(calibGui.fileNames_inFolder,1)
+                I_name = deblank(calibGui.fileNames_inFolder_char(img_i,:));
                 new_img = imread(I_name);
                 
                 calib_img = calibration_routine(calibGui.transform_3x3_matrix, new_img);
                 imwrite(calib_img,['calibrated\calib_', I_name]);
             end
             cd(old_folder);
+        end
+
+        function calibGui = save_file_names_in_folder(calibGui)
+            %gets file names with the selected extension
+            current_folder = pwd; %saving so the program can return to the original  folder
+
+            cd(calibGui.img_folder);
+            if calibGui.files_extension(1) ~= '*'
+                if calibGui.files_extension(1) ~= '.'
+                    calibGui.files_extension = char(strcat('*.',calibGui.files_extension));
+                else
+                    calibGui.files_extension = char(strcat('*',calibGui.files_extension));
+                end
+            end
+
+            file_names = struct2cell(dir(calibGui.files_extension));
+            calibGui.fileNames_inFolder = string.empty(0, length(file_names(1,:)) );
+
+            for i=1:size(file_names,2)%no. of columns
+                %file_name_dummy = cell2mat(file_names(1,i));
+                file_name_dummy = file_names{1,i}(1,:);
+                file_name_dummy = string(file_name_dummy);
+                if i == 1
+                    calibGui.fileNames_inFolder = file_name_dummy;
+                else
+                    calibGui.fileNames_inFolder = [calibGui.fileNames_inFolder; file_name_dummy];
+                end
+            end
+            calibGui.fileNames_inFolder_char = char(calibGui.fileNames_inFolder);
+            cd(current_folder);
         end
 
         % Button pushed function: calibratecheckerimgButton
@@ -269,57 +320,62 @@ classdef calibGui  < handle
     
         % Create UIFigure and components
         function calibGui = create_calib_itself_components(calibGui)
-            calibGui = delete_2nd_dialog_elements(calibGui);
-            % Create UsethesavedcolorcheckertoLabel
-            calibGui.UsethesavedcolorcheckertoLabel = uilabel(calibGui.color_calibrate);
-            calibGui.UsethesavedcolorcheckertoLabel.HorizontalAlignment = 'center';
-            calibGui.UsethesavedcolorcheckertoLabel.FontSize = 16;
-            calibGui.UsethesavedcolorcheckertoLabel.FontWeight = 'bold';
-            calibGui.UsethesavedcolorcheckertoLabel.Position = [45 90 248 22];
-            calibGui.UsethesavedcolorcheckertoLabel.Text = 'Use the saved color checker to ';
+                calibGui = delete_2nd_dialog_elements(calibGui);
+%             if (calibGui.checker_found)
+                % Create UsethesavedcolorcheckertoLabel
+                calibGui.UsethesavedcolorcheckertoLabel = uilabel(calibGui.color_calibrate);
+                calibGui.UsethesavedcolorcheckertoLabel.HorizontalAlignment = 'center';
+                calibGui.UsethesavedcolorcheckertoLabel.FontSize = 16;
+                calibGui.UsethesavedcolorcheckertoLabel.FontWeight = 'bold';
+                calibGui.UsethesavedcolorcheckertoLabel.Position = [45 90 248 22];
+                calibGui.UsethesavedcolorcheckertoLabel.Text = 'Use the saved color checker to ';
 
-            % Create batchprocessafolderButton
-            calibGui.batchprocessafolderButton = uibutton(calibGui.color_calibrate, 'push');
-            calibGui.batchprocessafolderButton.ButtonPushedFcn = @(calibGui,event)calibGui.batchprocessafolderButtonPushed;
-            calibGui.batchprocessafolderButton.Position = [16 46 134 22];
-            calibGui.batchprocessafolderButton.Text = 'batch process a folder';             
-%                         calibGui.openfileButton = uibutton(calibGui.color_calibrate, 'push');
-%             calibGui.openfileButton.ButtonPushedFcn = @(openfileButton,event)calibGui.openfileButtonPushed;
-            
-            %calibGui.batchprocessafolderButton.ButtonPushedFcn = createCallbackFcn(calibGui, @batchprocessafolderButtonPushed, true);
-            
-            %Create calibrateafileButton
-            calibGui.calibrateafileButton = uibutton(calibGui.color_calibrate, 'push');
-            calibGui.calibrateafileButton.ButtonPushedFcn = @(calibrateafileButton,event)calibGui.calibrateafileButtonPushed;
-            %calibGui.calibrateafileButton.ButtonPushedFcn = createCallbackFcn(calibGui, @calibrateafileButtonPushed, true);
-            calibGui.calibrateafileButton.Position = [170 46 100 22];
-            calibGui.calibrateafileButton.Text = 'calibrate a file';
+                % Create batchprocessafolderButton
+                calibGui.batchprocessafolderButton = uibutton(calibGui.color_calibrate, 'push');
+                calibGui.batchprocessafolderButton.ButtonPushedFcn =...
+                    @(batchprocessafolderButton,event)calibGui.batchprocessafolderButtonPushed;
+                calibGui.batchprocessafolderButton.Position = [16 46 134 22];
+                calibGui.batchprocessafolderButton.Text = 'batch process a folder';             
+    %                         calibGui.openfileButton = uibutton(calibGui.color_calibrate, 'push');
+    %             calibGui.openfileButton.ButtonPushedFcn = @(openfileButton,event)calibGui.openfileButtonPushed;
 
-            % Create calibratecheckerimgButton
-            calibGui.calibratecheckerimgButton = uibutton(calibGui.color_calibrate, 'push');
-            calibGui.calibratecheckerimgButton.ButtonPushedFcn = @(calibratecheckerimgButton,event)calibGui.calibratecheckerimgButtonPushed;
-            %calibGui.calibratecheckerimgButton.ButtonPushedFcn = createCallbackFcn(calibGui, @calibratecheckerimgButtonPushed, true);
-            calibGui.calibratecheckerimgButton.Position = [18 15 129 22];
-            calibGui.calibratecheckerimgButton.Text = 'calibrate checker img';
+                %calibGui.batchprocessafolderButton.ButtonPushedFcn = createCallbackFcn(calibGui, @batchprocessafolderButtonPushed, true);
 
-            % Create savecheckerforlateruseButton
-            calibGui.savecheckerforlateruseButton = uibutton(calibGui.color_calibrate, 'push');
-            calibGui.savecheckerforlateruseButton.FontWeight = 'bold';
-            calibGui.savecheckerforlateruseButton.FontColor = [1 0 0];
-            calibGui.savecheckerforlateruseButton.ButtonPushedFcn = @(savecheckerforlateruseButton,event)calibGui.savecheckerforlateruseButtonPushed;
-            %calibGui.savecheckerforlateruseButton.ButtonPushedFcn = createCallbackFcn(calibGui, @savecheckerforlateruseButtonPushed, true);
-            calibGui.savecheckerforlateruseButton.Position = [155 15 163 22];
-            calibGui.savecheckerforlateruseButton.Text = 'save checker for later use'; 
-            calibGui = toggle_colorcalib_uifig_visibility(calibGui);
+                %Create calibrateafileButton
+                calibGui.calibrateafileButton = uibutton(calibGui.color_calibrate, 'push');
+                calibGui.calibrateafileButton.ButtonPushedFcn =...
+                    @(calibrateafileButton,event)calibGui.calibrateafileButtonPushed;
+                %calibGui.calibrateafileButton.ButtonPushedFcn = createCallbackFcn(calibGui, @calibrateafileButtonPushed, true);
+                calibGui.calibrateafileButton.Position = [170 46 100 22];
+                calibGui.calibrateafileButton.Text = 'calibrate a file';
+
+                % Create calibratecheckerimgButton
+                calibGui.calibratecheckerimgButton = uibutton(calibGui.color_calibrate, 'push');
+                calibGui.calibratecheckerimgButton.ButtonPushedFcn = @(calibratecheckerimgButton,event)calibGui.calibratecheckerimgButtonPushed;
+                %calibGui.calibratecheckerimgButton.ButtonPushedFcn = createCallbackFcn(calibGui, @calibratecheckerimgButtonPushed, true);
+                calibGui.calibratecheckerimgButton.Position = [18 15 129 22];
+                calibGui.calibratecheckerimgButton.Text = 'calibrate checker img';
+
+                % Create savecheckerforlateruseButton
+                calibGui.savecheckerforlateruseButton = uibutton(calibGui.color_calibrate, 'push');
+                calibGui.savecheckerforlateruseButton.FontWeight = 'bold';
+                calibGui.savecheckerforlateruseButton.FontColor = [1 0 0];
+                calibGui.savecheckerforlateruseButton.ButtonPushedFcn = @(savecheckerforlateruseButton,event)calibGui.savecheckerforlateruseButtonPushed;
+                %calibGui.savecheckerforlateruseButton.ButtonPushedFcn = createCallbackFcn(calibGui, @savecheckerforlateruseButtonPushed, true);
+                calibGui.savecheckerforlateruseButton.Position = [155 15 163 22];
+                calibGui.savecheckerforlateruseButton.Text = 'save checker for later use'; 
+                calibGui =  toggle_colorcalib_uifig_visibility(calibGui);
+%             else
+%                 % calibGui = create_color_calib_window_components(calibGui);
+%             end
         end
     
-        function delete_calib_itself_components(calibGui)
+        function calibGui = delete_calib_itself_components(calibGui)
             delete(calibGui.UsethesavedcolorcheckertoLabel);
             delete(calibGui.batchprocessafolderButton);
             %delete(calibGui.colorcalibrateafileButton);            
             %delete(calibGui.calibratethecheckeritselftButton);            
         end
-
    end
 end
 
