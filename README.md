@@ -26,7 +26,7 @@ This is the result of the previous checker image:
 
 ![alt text](https://github.com/alexandresoaresilva/auto_color_calibration/blob/master/checker_imgs/calibrated/calib_check46.png)
 
-And this is the errors measureded when the color calibration is run:
+And this is the errors measureded when the color calibration is run, separated by color in 3 of the measurements:
 
 ![alt text](https://github.com/alexandresoaresilva/auto_color_calibration/blob/master/docs/error_measurements.JPG)
 
