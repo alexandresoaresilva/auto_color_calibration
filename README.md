@@ -22,6 +22,14 @@ Under the same light conditions the other pictures you want to calibrate were ca
 
 4. It calculates RMS error, among other distance measures, from the original reference values and the calibrated ones.
 
+This is the result of the previous checker image:
+
+![alt text](https://github.com/alexandresoaresilva/auto_color_calibration/blob/master/checker_imgs/calibrated/calib_check46.png)
+
+And this is the errors measureded when the color calibration is run:
+
+![alt text](https://github.com/alexandresoaresilva/auto_color_calibration/blob/master/docs/error_measurements.JPG)
+
 To run the object with the color calibration GUI, try ouy the script test.m.
 
 It's fully featured, if rought on the edges.
