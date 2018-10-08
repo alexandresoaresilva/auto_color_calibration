@@ -2,7 +2,7 @@
 
 Using an image of a Macbeth color checker (24 colors):
 
-![alt text](https://github.com/alexandresoaresilva/auto_color_calibration/blob/master/checker_imgs/calib_calib_check30.png)
+![alt text](https://github.com/alexandresoaresilva/auto_color_calibration/blob/master/checker_imgs/check46.png)
 
 Under the same light conditions the other pictures you want to calibrate were captured, this package of scripts:
 
