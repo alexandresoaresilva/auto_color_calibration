@@ -1,0 +1,237 @@
+% Author: Dr. Hamed Sari-Sarraf
+% input:
+% outputs: 
+function [checker_found, error] = ColorPatchDetectClean(img_char)
+    addpath(pwd);
+    
+    error = MException.empty();
+    checker_found = 0;
+    
+    close all
+    try
+        % cam = webcam(2);
+        % cam.Resolution='640x480';
+        % preview(cam);
+        % pause;
+        % rgb1 = snapshot(cam);
+        % clear('cam')
+        % I1=rgb2hsv(rgb1);
+        % I1=I1(:,:,3);
+        
+        rgb1=imread(img_char);
+        if size(rgb1,1)/size(rgb1,2) > .68...
+                && size(rgb1,1)/size(rgb1,2) < .8
+            rgb1 = imresize(rgb1,[480 640]);
+        else
+            disp('use 4x3 images (e.g 640x480)')
+            return;
+        end
+        %homogeneous grayscale
+        I1=rgb2hsv(rgb1);
+        I1=I1(:,:,3);
+
+        % I1 = imgaussfilt(I1,1);
+        figure; 
+        imshow(I1)
+
+        %constrain in number of pixels
+        [regions]=detectMSERFeatures(I1,'RegionAreaRange',[1000 10000]);
+        %[regions]=detectMSERFeatures(I1,'RegionAreaRange',[1000 10000]);
+
+        %majorAxis / minorAxis; if <= 0.9 it's too distorted to be a circle
+        %circular=(regions.Axes(:,2)./regions.Axes(:,1))>0.9;
+        circular=(regions.Axes(:,2)./regions.Axes(:,1))>0.9;
+        %assigning empty values to regions that are not circles
+        regions(circular==0)=[];
+
+        %each PixelList has all the pixels of a region, with their location
+        %cell {pixelNum, [x y]}
+        tar_reg=cell2mat(regions.PixelList);
+        
+        if isempty(tar_reg)%checker wasn't found
+            disp('Failed to detect checkerboard');
+           return 
+        end
+        %new black and white image
+        BW=zeros(size(I1));
+        % tar_reg(:,2) == y from regions'  pixel list
+        % tar_reg(:,1) == x from regions' pixel list
+        % sub2ind finds linear index within img
+        BW(sub2ind(size(I1),tar_reg(:,2),tar_reg(:,1)))=1;
+        figure
+        %binary img with regions of interest in white
+        % [] scales pixel intensity to 
+        % black for min and white to max
+        imshow(BW,[]);
+        %T3 is non-singular (det non-zero)
+        T3=[1 0 0; 0 1 0; -5 -5 1];
+        %sets of parallel lines remain parallet after affine transform
+        tform = affine2d(T3);
+        % Nearest-neighbor interpolation—the output pixel is assigned the value 
+        % of the pixel that the point falls within. No other pixels are considered.
+        BW=imwarp(BW,tform,'nearest','outputview',imref2d(size(BW)));
+        BW=imclearborder(BW,8);
+        T3=[1 0 0; 0 1 0; 10 10 1];
+        tform = affine2d(T3);
+        BW=imwarp(BW,tform,'nearest','outputview',imref2d(size(BW)));
+        %clears small/noise components (such as text)
+        BW=imclearborder(BW,8);
+        T3=[1 0 0; 0 1 0; -5 -5 1];
+        tform = affine2d(T3);
+        BW=imwarp(BW,tform,'nearest','outputview',imref2d(size(BW)));
+
+        %LABELS (with increasing numbers > 0 ) all the objects found in the B&W pic
+        L=bwlabel(BW);
+
+        stats = regionprops('table',L,'Centroid','Area');
+        %logical array for areas 3 std dev greater or smaller than the mean obj areas
+        sizefilt=stats.Area>(mean(stats.Area)+3*std(stats.Area)) | ...
+            stats.Area<mean(stats.Area)-3*std(stats.Area);
+        %if sizefilt not empty, assign 0 to pixels within areas 
+        %beyond constrain
+        if ~isempty(find(sizefilt))
+           BW( L == find(sizefilt) )=0;
+        end
+        %gets the different regions again, now without outliers
+        stats = regionprops('table',bwlabel(BW),'Centroid');
+        figure
+        imshow(BW,[]);
+        %L is a numerical labels matrix
+        % B is a list of objects cell array 
+            % each of its indexes is a list of pixels that form
+            % the boundary of an individual object
+        [B,L] = bwboundaries(BW,'noholes');
+        figure
+        %plots different colors for each diff. object
+        imshow(label2rgb(L, @jet, [.5 .5 .5]))
+        hold on
+        bou=zeros(size(I1));
+        for k = 1:length(B)
+           boundary = B{k};
+           plot(boundary(:,2), boundary(:,1), 'w', 'LineWidth', 2)
+           %draws obj boundaries on the new img
+           bou(sub2ind(size(I1),floor(boundary(:,1)),floor(boundary(:,2))))=1;
+        end
+        % hough uses parametric representation of a line
+        % 	: rho = x*cos(theta) + y*sin(theta).
+        % 	 R(rho): distance from the origin to the line along 
+        %		a vector perpendicular to the line
+        %	 T(theta): angle in degrees between the x-axis and this vector.
+        %    H(Standard Hough Transform): parameter space matrix whose rows 
+        %		and columns correspond to rho and theta values respectively.
+        %		and columns correspond to rho and theta values respectively.
+
+        % NOTE FROM Mathworks: 
+        % When you create the Hough transform matrix using the 
+        % hough function, you must use the default theta value, [-90 90). 
+        % Using a Hough transform matrix created with any other theta 
+        % can produce unexpected results.
+
+        [H,T,R] = hough(bou,'Theta',-30:30);
+
+        P  = houghpeaks(H,1);
+        %finds angle for Hough peak line and the y value of the x-axis vector
+        rotang = T(P(:,2)); 
+        %finds distance  for Hough peak line from the origin of its x value of the x-axis vector
+        rho = R(P(:,1));
+
+        plot(rotang,rho,'s','color','white');
+        % figure
+        % imshow(imrotate(I1,rotang),[])
+        %% 
+        % imrotate(bou,rotang,'nearest','crop'): 2x2 nearest neighboor interpol.
+        %   rotang: angle for better horizontal alingment
+        %   bou: img with drawn (binary) boundaries
+        % 	crop: same size as original img
+        Sfft=abs(fftshift(fft2(imrotate(bou,rotang,'nearest','crop'))));
+        % figure
+        % imshow(Sfft,[])
+
+        %this is just a (white) line
+        win=Sfft(480/2,640/2+1-15:640/2+1+15);
+        % 5 black pixel
+        win(16-2:16+2)=0;
+        %gets index of  white pixels
+        [m,ind]=max(win(:));
+        %index from subscripts
+        [x,y]=ind2sub([1,31],ind);
+
+        fff_r=abs(16-y);
+        win=Sfft(480/2+1-15:480/2+1+15,640/2+1);
+        win(16-2:16+2)=0;
+        [m,ind]=max(win(:));
+        [x,y]=ind2sub([31,1],ind);
+        fff_c=abs(16-x);
+
+        mask=uint8(zeros(size(I1)));
+
+        figure
+        imshow(BW,[]);
+        hold on
+        plot(stats.Centroid(:,1),stats.Centroid(:,2),'r*')
+        % makes centroids' locations white on mask
+        mask(sub2ind(size(I1),floor(stats.Centroid(:,2)),...
+            floor(stats.Centroid(:,1))))=255;
+
+        BW1=imrotate(BW,rotang,'nearest','crop');
+        %selects regions related to labels (so really the patches themselves)
+        stats1 = regionprops('table',bwlabel(BW1),'PixelList');
+        xxx=cell2mat(stats1.PixelList);
+        xmin=min(xxx(:,1));
+        xmax=max(xxx(:,1));
+        ymin=min(xxx(:,2));
+        ymax=max(xxx(:,2));
+        %counterclockwise rotation matrix based on
+        Rmat=[cosd(rotang) -sind(rotang); sind(rotang) cosd(rotang)];
+        %clockwise rotation matrix
+        iRmat=[cosd(rotang) sind(rotang); -sind(rotang) cosd(rotang)];
+
+        %correctingn alingment of centroids
+        C=[stats.Centroid(:,1)-640/2 stats.Centroid(:,2)-480/2]*Rmat;
+        C=[C(:,1)+640/2 C(:,2)+480/2];
+
+        % getting bottom borders
+        Cnew1=[C(:,1) C(:,2)+480/fff_c];
+        Cnew1(Cnew1(:,1)>xmax | Cnew1(:,1)<xmin,:)=[];
+        Cnew1(Cnew1(:,2)>ymax | Cnew1(:,2)<ymin,:)=[];
+        Cnew1=[Cnew1(:,1)-640/2 Cnew1(:,2)-480/2]*iRmat;
+        Cnew1=[Cnew1(:,1)+640/2 Cnew1(:,2)+480/2];
+        plot(Cnew1(:,1),Cnew1(:,2),'gs')
+        mask(sub2ind(size(I1),floor(Cnew1(:,2)),floor(Cnew1(:,1))))=255;
+
+        % getting top borders
+        Cnew2=[C(:,1) C(:,2)-480/fff_c];
+        Cnew2(Cnew2(:,1)>xmax | Cnew2(:,1)<xmin,:)=[];
+        Cnew2(Cnew2(:,2)>ymax | Cnew2(:,2)<ymin,:)=[];
+        Cnew2=[Cnew2(:,1)-640/2 Cnew2(:,2)-480/2]*iRmat;
+        Cnew2=[Cnew2(:,1)+640/2 Cnew2(:,2)+480/2];
+        plot(Cnew2(:,1),Cnew2(:,2),'gs')
+        mask(sub2ind(size(I1),floor(Cnew2(:,2)),floor(Cnew2(:,1))))=255;
+
+        % getting centroids on 5 squares to the right
+        Cnew3=[C(:,1)+640/fff_r C(:,2)];
+        Cnew3(Cnew3(:,1)>xmax | Cnew3(:,1)<xmin,:)=[];
+        Cnew3(Cnew3(:,2)>ymax | Cnew3(:,2)<ymin,:)=[];
+        Cnew3=[Cnew3(:,1)-640/2 Cnew3(:,2)-480/2]*iRmat;
+        Cnew3=[Cnew3(:,1)+640/2 Cnew3(:,2)+480/2];
+        plot(Cnew3(:,1),Cnew3(:,2),'rs')
+        mask(sub2ind(size(I1),floor(Cnew3(:,2)),floor(Cnew3(:,1))))=255;
+        % getting centroids on 5 squares to the left
+        Cnew4=[C(:,1)-640/fff_r C(:,2)];
+        Cnew4(Cnew4(:,1)>xmax | Cnew4(:,1)<xmin,:)=[];
+        Cnew4(Cnew4(:,2)>ymax | Cnew4(:,2)<ymin,:)=[];
+        Cnew4=[Cnew4(:,1)-640/2 Cnew4(:,2)-480/2]*iRmat;
+        Cnew4=[Cnew4(:,1)+640/2 Cnew4(:,2)+480/2];
+        plot(Cnew4(:,1),Cnew4(:,2),'bs')
+        mask(sub2ind(size(I1),floor(Cnew4(:,2)),floor(Cnew4(:,1))))=255;
+
+        mask=imdilate(mask,strel('disk',5));
+        figure
+        imshow((0.8*rgb1+0.2*mask),[]);
+        disp(['Pic: ', img_char]);
+        checker_found = 1;
+        pause
+    catch ME
+       error =  ME
+    end
+end
