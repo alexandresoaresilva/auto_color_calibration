@@ -144,13 +144,14 @@ end
 
 
 function RGB_norm = normalize_RGB_vec(RGB_vec)
-    R = normalize_color_channel(RGB_vec(:,1));
-    G = normalize_color_channel(RGB_vec(:,2));
-    B = normalize_color_channel(RGB_vec(:,3));
+    R = normalize_color_channel(RGB_vec(:,1),RGB_vec);
+    G = normalize_color_channel(RGB_vec(:,2),RGB_vec);
+    B = normalize_color_channel(RGB_vec(:,3),RGB_vec);
     RGB_norm = [R G B];
     function norm_Color_channel =...
-            normalize_color_channel(color_channel)
-         norm_Color_channel = color_channel./255;
+            normalize_color_channel(color_channel,RGB_vec)
+         %norm_Color_channel = color_channel./255;
+         norm_Color_channel = color_channel./sum(RGB_vec);
     end
 end
 

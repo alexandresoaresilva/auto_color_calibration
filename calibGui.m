@@ -37,6 +37,12 @@ classdef calibGui  < handle
             addpath('checker_imgs');
             currentFolder = pwd;
            % appName = mfilename;
+            find_color_cal_open = findall(0, 'Type', 'figure','Name','LS Color Calibration');
+            
+            if ~isempty(find_color_cal_open)
+                close(find_color_cal_open);
+            end
+            
             appName = strcat({'\'},mfilename); % added for getting rid of slash on the next statement
                                                   %at the end of the full app path
             fullAppPath = mfilename('fullpath');
@@ -199,7 +205,13 @@ classdef calibGui  < handle
                 cd calibrated;
 
                 calib_img = calibration_routine(calibGui.transform_3x3_matrix, img_to_be_calibrated);
-                calib_img_name = ['calib_', img_to_be_calibrated_name];
+                
+                calib_img_name = 'calib_';
+                if calibGui.norm_color_calib %concatenates norm
+                    %for normalized
+                    calib_img_name = [calib_img_name, 'norm_'];
+                end
+                calib_img_name = [calib_img_name, img_to_be_calibrated_name];
                 imwrite(calib_img,calib_img_name);
                 
                 calib_file_path = pwd;
@@ -280,9 +292,16 @@ classdef calibGui  < handle
            
            %calib_folder = [calibGui.checker_path, 'calibrated'];
            calib_folder = pwd;
-           calib_img = calibGui.calibrated_img;
-           file_name = ['calib_', calibGui.img_name];
-           imwrite(calibGui.calibrated_img, file_name);
+           %calib_img = calibGui.calibrated_img;
+           
+           calib_img_name = 'calib_';
+           if calibGui.norm_color_calib %concatenates norm
+                %for normalized
+               calib_img_name = [calib_img_name, 'norm_'];
+           end
+           calib_img_name = [calib_img_name, calibGui.img_name];
+           
+           imwrite(calibGui.calibrated_img, calib_img_name);
            
            text_diag = calib_folder;
            
@@ -307,7 +326,15 @@ classdef calibGui  < handle
                 %calib_folder = pwd;
                 calib_img = calibGui.calibrated_img;
                 file_name_orig = calibGui.img_name;
-                file_name = ['calib_', calibGui.img_name];
+                file_name_orig = [file_name_orig(1:(end-4)),'_original',...
+                    file_name_orig((end-3):end)];
+                calib_img_name = 'calib_';
+                if calibGui.norm_color_calib %concatenates norm
+                    %for normalized
+                    calib_img_name = [calib_img_name, 'norm_'];
+                end
+                file_name = [calib_img_name, calibGui.img_name];
+                %file_name = ['calib_', calibGui.img_name];
                 file_name2 = [calib_folder,'\',file_name];
 
                 M_name_txt = ['M_transf_matrix',file_name, '.txt'];
@@ -316,7 +343,7 @@ classdef calibGui  < handle
                 M_mat = [calib_folder,'\', M_name_mat];
 
                 imwrite(calibGui.calibrated_img, file_name2);
-                imwrite(calibGui.calibrated_img, file_name_orig);
+                imwrite(calibGui.color_calibrate_img, file_name_orig);
                 M = calibGui.transform_3x3_matrix;
                 save(M_mat,'M');
                 fileID = fopen(M_txt,'w');
@@ -385,11 +412,11 @@ classdef calibGui  < handle
                 %calibGui.savecheckerforlateruseButton.ButtonPushedFcn = createCallbackFcn(calibGui, @savecheckerforlateruseButtonPushed, true);
                 calibGui.savecheckerforlateruseButton.Position = [155 15 163 22];
                 calibGui.savecheckerforlateruseButton.Text = 'save checker/matrix'; 
-                error_fig = findall(0, 'Type', 'figure','Name','Errors');
-                if ~isempty(error_fig)
-                    error_fig.Visible = 'off';
-                    error_fig.Visible = 'on';
-                end
+                %error_fig = findall(0, 'Type', 'figure','Name','Errors');
+%                 if ~isempty(error_fig)
+%                     error_fig.Visible = 'off';
+%                     error_fig.Visible = 'on';
+%                 end
                 calibGui =  toggle_colorcalib_uifig_visibility(calibGui);
 %             else
 %                 % calibGui = create_color_calib_window_components(calibGui);
