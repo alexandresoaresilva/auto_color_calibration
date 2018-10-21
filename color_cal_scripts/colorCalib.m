@@ -35,8 +35,7 @@ function [calib_img, M] = colorCalib(I_check_from_cam, I_name, norm)
         {'within distance: $\frac{\sum_{i=1}^{24}\Delta\textmd{RGB}}{24}$';['= ',... 
         num2str(error_cell_pkg{4})]};
         title(title_noCal_vs_cal,'Interpreter','latex');
-        xlabel({['calib (', normalized,')'];...
-            'PRESS ENTER TO CONTINUE...'},'FontSize',12);
+        xlabel(['calib (', normalized,')'],'FontSize',12);
         a = gcf;
         a.Units = 'normalized';
         a.Position = [0 0 1 1];
