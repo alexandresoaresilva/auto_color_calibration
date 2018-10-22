@@ -137,14 +137,8 @@ classdef calibGui  < handle
         
         function this = delete_1st_dialog_elements(this)
             delete(this.color_calibrate.Children);
-%             delete(calibGui.cameraButton);
-%             delete(calibGui.openfileButton);
-%             delete(calibGui.make_selection);            
         end
-        function this = create_calib_pics_and_errors(this)
-            new_res = round(this.screen_res*2/3);
-            this.color_calibrate.Position(3:4) = [new_res(1), new_res(2)];
-            this.color_calibrate.AutoResizeChildren = 'off';
+        function this = create_calib_pics_and_errors(this)            
              %first not normalized
             [this.calibrated_img{1}, this.transform_3x3_matrix{1},...
                 this.RGB_ref_values, this.error_cell_pkg{1}] =...
@@ -164,6 +158,10 @@ classdef calibGui  < handle
                 [this.calibrated_img{2}, this.transform_3x3_matrix{2},...
                     ~, this.error_cell_pkg{2}] =...
                     colorCalib(this.color_calibrate_img, this.img_name, 1);
+                % adjusting window
+                new_res = round(this.screen_res*2/3);
+                this.color_calibrate.Position(3:4) = [new_res(1), new_res(2)];
+                this.color_calibrate.AutoResizeChildren = 'off';
         % ====================== 1st pic without normalization + error calculated 
                 this.ax_calib{1} = subplot(2,2,1,'Parent',this.color_calibrate);
                 %rotates images 90 degress so they can fit together, side by
@@ -210,13 +208,14 @@ classdef calibGui  < handle
         end
         function this = creat_norm_buttons(this)
 %             I_s2 = imshow([rot_I, rot_I_Calib1],'Parent',ax2);
-            this = create_calib_pics_and_errors(this);
-            this = bring_app_to_center(this,200);
 %             x = this.color_calibrate.Position(3:4);
 %             %Create normalized_or_not_text
 %             x=round(x(2)/2);
 %             y=round(x(1)/2);
+            
+            this = create_calib_pics_and_errors(this);
             if this.checker_found
+                this = bring_app_to_center(this,200);
                 this.normalized_or_not_text = uilabel(this.color_calibrate);
                 this.normalized_or_not_text.HorizontalAlignment = 'center';
                 this.normalized_or_not_text.FontSize = 16;
@@ -233,7 +232,7 @@ classdef calibGui  < handle
                 % Create yesButton
                 this.yesButton = uibutton(this.color_calibrate, 'push');
                 this.yesButton.ButtonPushedFcn = @(yesButtonPushed,event)this.yesButtonPushed;
-                
+
                 %calibGui.yesButton.ButtonPushedFcn = createCallbackFcn(calibGui, @yesButtonPushed, true);
                 this.yesButton.Position = [27 15 100 22];
                 this.yesButton.Text = 'yes';
@@ -241,14 +240,14 @@ classdef calibGui  < handle
                 % Create noButton
                 this.noButton = uibutton(this.color_calibrate, 'push');
                 this.noButton.ButtonPushedFcn = @(noButton,event)this.noButtonPushed;
-                
+
                 %calibGui.noButton.ButtonPushedFcn = createCallbackFcn(calibGui, @noButtonPushed, true);
                 this.noButton.Position = [200 15 100 22];
                 this.noButton.Text = 'no';
+                this = toggle_colorcalib_uifig_visibility(this);
             else
                 this = calibrate_or_restart(this);
             end
-%            this = toggle_colorcalib_uifig_visibility(this);
         end
         % Button pushed function: yesButton
         function this = yesButtonPushed(this, event)
@@ -284,7 +283,7 @@ classdef calibGui  < handle
                 warndlg({'Could not detect Macbeth checker.';...
                     'Try with a different image.'});
                 this = delete_2nd_dialog_elements(this);
-                this = create_color_calib_window_components(this);
+                %this = create_color_calib_window_components(this);
             end
         end
         function this =  toggle_colorcalib_uifig_visibility(this)
@@ -321,6 +320,7 @@ classdef calibGui  < handle
                %open dialog box with path where file was saved
                text_diag = {pwd};
                diag_saved_files_path(calibGui,text_diag,calib_I_name);
+               cd(older_folder);
             end
         end
         
@@ -351,7 +351,7 @@ classdef calibGui  < handle
                 end
                 calib_I_name = [': ', num2str(img_i), ' calibrated images'];
                 %open dialog box with path where file was saved
-                text_diag = {pwd};
+                text_diag = {[pwd, '\calibrated']};
                 diag_saved_files_path(this,text_diag,calib_I_name);
                 cd(old_folder);
             end
@@ -506,8 +506,9 @@ classdef calibGui  < handle
         end
     
         function this = delete_calib_itself_components(this)
-            delete(this.UsethesavedcolorcheckertoLabel);
-            delete(this.batchprocessafolderButton);
+            delete(this.color_calibrate.Children);
+%             delete(this.UsethesavedcolorcheckertoLabel);
+%             delete(this.batchprocessafolderButton);
             %delete(calibGui.colorcalibrateafileButton);            
             %delete(calibGui.calibratethecheckeritselftButton);            
         end
@@ -540,4 +541,3 @@ classdef calibGui  < handle
         end
    end
 end
-
