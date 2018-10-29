@@ -8,7 +8,8 @@ classdef calibGui  < handle
         color_calibrate_img %checker image
         calibrated_img
         RGB_ref_values
-        error_cell_pkg
+        err_pkg
+        err_calib_pkg
         color_labels
         RGB_triplets_plot
         transform_3x3_matrix
@@ -50,7 +51,7 @@ classdef calibGui  < handle
             find_color_cal_open = findall(0, 'Type', 'figure','Name','LS Color Calibration');
             
             if ~isempty(find_color_cal_open)
-                close(find_color_cal_open);
+                delete(find_color_cal_open);
             end
             this.calib_I_pre_name = 'calib_';
             this.norm_color_calib_char = '';
@@ -78,10 +79,8 @@ classdef calibGui  < handle
             this.color_calibrate.Position = [100 100 330 130];
             this.color_calibrate.Name = 'LS Color Calibration';
             this.color_calibrate.Resize = 'off';
-            this = bring_app_to_center(this,0);
-%             this.color_calibrate.Position(1) = round( (this.screen_res(1) - this.color_calibrate.Position(4)*1.5)/2 );
-%             this.color_calibrate.Position(2) = round( (this.screen_res(2) - this.color_calibrate.Position(3))/2 );
-            %saves center for posterior use (small window center)
+            this = bring_app_to_center(this,0,0);
+
             this.small_window_pos = this.color_calibrate.Position;
             %this.screen_center(1,:) = this.color_calibrate.Position(1:2);
             
@@ -90,18 +89,105 @@ classdef calibGui  < handle
             this = create_color_calib_window_components(this);
        end
        
-%        function this = init_calib_plots(this)
-%           this.window_calib_plots = uifigure;
-%           
-%             this.color_calibrate = ;
-%             this.color_calibrate.Position = [100 100 330 130];
-%             this.color_calibrate.Name = 'Calibration Results';
-% 
-%        end
+        function this = calib_plots(this)
+            this.window_calib_plots = uifigure('Visible','off');
+            
+%             new_res = round(this.screen_res*2/3);
+%             this.window_calib_plots.Position(3:4) = [new_res(1), new_res(2)];
+            this.window_calib_plots.AutoResizeChildren = 'off';
+            this.window_calib_plots.Name = 'Color Calibration Errors and Plots';
+            this = bring_app_to_center(this,200,1);
+            %gets the max error in individual colors and sets it
+            %as the y limit
+            max_y_error =...
+                ceil(max([this.err_calib_pkg{1}{1};...
+                        this.err_calib_pkg{2}{1}])) + 5;
+            err_before_cal = [this.err_pkg{1}{4} this.err_pkg{2}{4}];
+            difference(1) = err_before_cal(1) - this.err_calib_pkg{1}{4};
+            difference(2) = err_before_cal(2) - this.err_calib_pkg{2}{4};
+            improvement(1) = difference(1)/err_before_cal(1)*100;
+            improvement(2) = difference(2)/err_before_cal(2)*100;
+
+        % ====================== 1st pic without normalization + error calculated 
+            this.ax_calib{1} = subplot(2,2,1,'Parent',this.window_calib_plots);
+            %rotates images 90 degress so they can fit together, side by
+            %side, in a 4:3 ratio
+            rot_I = imrotate(this.color_calibrate_img,90);
+            rot_I_Calib1 = imrotate(this.calibrated_img{1},90);            
+            I_s = imshow([rot_I, rot_I_Calib1],'Parent',this.ax_calib{1});
+
+            title_noCal_vs_cal=...
+                {['within distance: $\frac{\sum_{i=1}^{24}\Delta{RGB}}{24}$= ',... 
+                num2str(this.err_calib_pkg{1}{4})];['where ',...
+                '$\Delta{RGB = }\sqrt{\sum_{k=1}^3(ref_{k}-calibSamples_{k})^{2}}$']};
+            title(title_noCal_vs_cal,'Interpreter','latex','Parent',this.ax_calib{1});
+            
+            %'$error 
+            
+            x_text = {'calibrated NOT normalized; numbers below are pixel intensities - except for the percentage.';...
+                      ['Error_{original} = (within distance_{ref} - within distance_{original} ): ', num2str(err_before_cal(1))];...
+                      ['Error_{calib} = (within distance_{calib} - Error_{original}): ', num2str(difference(1))];...
+                      ['percentage difference (Error_{original} - Error_{calib}): ', num2str(improvement(1)), '%'];
+                      'Larger percent. differences = calibration worked better'};
+                  
+            xlabel(x_text,'FontSize',11,'Parent',this.ax_calib{1});
+            
+            %plot of the errors for each color
+            this.ax_calib{2} = subplot(2,2,3,'Parent',this.window_calib_plots);
+            
+            %this = plot_RMS_error(this, this.err_pkg{1},this.ax_calib{2});            
+            this = plot_RMS_error(this, this.err_calib_pkg{1},this.ax_calib{2});
+            this = adjust_axes_forRGB_RMS(this,this.ax_calib{2},max_y_error);
+            title('RMS errors: $\sqrt{\frac{1}{3}\sum_{k=1}^3(ref_{k}-calibSamples_{k})^{2}}$',...
+                'Interpreter','latex','Parent',this.ax_calib{2}); 
+        % ====================== 2nd pic (normalized) + error calculated'
+            this.ax_calib{3} = subplot(2,2,2,'Parent',this.window_calib_plots);
+            %rotates images 90 degress so they can fit together, side by
+            %side, in a 4:3 ratio
+            %now original in parallel with calib normalized
+            
+            rot_I_Calib1 = imrotate(this.calibrated_img{2},90);            
+            I_s = imshow([rot_I, rot_I_Calib1],'Parent',this.ax_calib{3});
+            title_noCal_vs_cal=...
+                {['within distance: $\frac{\sum_{i=1}^{24}\Delta{RGB}}{24}$= ',... 
+                num2str(this.err_calib_pkg{2}{4})];['where ',...
+                '$\Delta{RGB = }\sqrt{\sum_{k=1}^3(ref_{k}-normCalibSamples_{k})^{2}}$']};
+            
+            title(title_noCal_vs_cal,'Interpreter','latex','Parent',this.ax_calib{3});
+            
+            x_text = {'calibrated normalized; numbers below are pixel intensities - except for the percentage.';...
+                      ['Error_{original} = (within distance_{ref} - within distance_{original} ): ', num2str(err_before_cal(2))];...
+                      ['Error_{calib} = (within distance_{calib} - Error_{original}): ', num2str(difference(2))];...
+                      ['percentage difference (Error_{original} - Error_{calib}): ', num2str(improvement(2)), '%'];
+                      'Larger percent. differences = calibration worked better'};
+            xlabel(x_text,'FontSize',11,'Parent',this.ax_calib{3});
+           
+            %plot of the errors for each color
+            this.ax_calib{4} = subplot(2,2,4,'Parent',this.window_calib_plots);
+            this = plot_RMS_error(this, this.err_calib_pkg{2},this.ax_calib{4});            
+            this = adjust_axes_forRGB_RMS(this,this.ax_calib{4},max_y_error);
+            
+            title('RMS errors: $\sqrt{\frac{1}{3}\sum_{k=1}^3(ref_{k}-normCalibSamples_{k})^{2}}$',...
+                'Interpreter','latex','Parent',this.ax_calib{4});
+            this.window_calib_plots.WindowState = 'maximized';
+            this.window_calib_plots.Visible = 'on';
+        end
+        
+        function this = adjust_axes_forRGB_RMS(this,ax,max_y_error)
+            ax.XLim = [0 33];
+            ax.XTick = 1:24;
+            ax.YTick = 0:5:max_y_error;
+            ax.YLim = [0 max_y_error];
+        end
        
-       function this = bring_app_to_center(this,offset)
-            this.color_calibrate.Position(1) = round( (this.screen_res(1) - this.color_calibrate.Position(4)*1.5)/2 );
-            this.color_calibrate.Position(2) = round( (this.screen_res(2) - this.color_calibrate.Position(3))/2 + 100+offset); 
+       function this = bring_app_to_center(this,offset,plot)
+           if ~plot
+                this.color_calibrate.Position(1) = round( (this.screen_res(1) - this.color_calibrate.Position(4)*1.5)/2 );
+                this.color_calibrate.Position(2) = round( (this.screen_res(2) - this.color_calibrate.Position(3))/2 + 100+offset); 
+           else
+                this.window_calib_plots.Position(1) = round( (this.screen_res(1) - this.window_calib_plots.Position(4)*1.5)/2 );
+                this.window_calib_plots.Position(2) = round( (this.screen_res(2) - this.window_calib_plots.Position(3))/2 + 100+offset);                
+           end
        end
        
        function calibGui = create_color_calib_window_components(calibGui)            
@@ -121,6 +207,7 @@ classdef calibGui  < handle
         function color_calibrateFig_Close_it(this,event)
             if isvalid(this.color_calibrate)
                 delete(this.color_calibrate);
+                delete(this.window_calib_plots);
             end
         end
         % Button pushed function: openfileButton
@@ -141,7 +228,7 @@ classdef calibGui  < handle
         function this = create_calib_pics_and_errors(this)            
              %first not normalized
             [this.calibrated_img{1}, this.transform_3x3_matrix{1},...
-                this.RGB_ref_values, this.error_cell_pkg{1}] =...
+                this.RGB_ref_values, this.err_pkg{1}, this.err_calib_pkg{1}] =...
                 colorCalib(this.color_calibrate_img, this.img_name, 0);
             %initializes vars for plotting RMS error
             size_matrix = size(this.transform_3x3_matrix{1});
@@ -156,66 +243,19 @@ classdef calibGui  < handle
                 this = init_error_values(this);
                 %second normalized
                 [this.calibrated_img{2}, this.transform_3x3_matrix{2},...
-                    ~, this.error_cell_pkg{2}] =...
+                    ~, this.err_pkg{2}, this.err_calib_pkg{2}] =...
                     colorCalib(this.color_calibrate_img, this.img_name, 1);
                 % adjusting window
-                new_res = round(this.screen_res*2/3);
-                this.color_calibrate.Position(3:4) = [new_res(1), new_res(2)];
-                this.color_calibrate.AutoResizeChildren = 'off';
-        % ====================== 1st pic without normalization + error calculated 
-                this.ax_calib{1} = subplot(2,2,1,'Parent',this.color_calibrate);
-                %rotates images 90 degress so they can fit together, side by
-                %side, in a 4:3 ratio
-                rot_I = imrotate(this.color_calibrate_img,90);
-                rot_I_Calib1 = imrotate(this.calibrated_img{1},90);            
-                I_s = imshow([rot_I, rot_I_Calib1],'Parent',this.ax_calib{1});
-                
-                title_noCal_vs_cal=...
-                    {['within distance: $\frac{\sum_{i=1}^{24}\Delta{RGB}}{24}$= ',... 
-                    num2str(this.error_cell_pkg{1}{4})];['where ',...
-                    '$\Delta{RGB = }\sqrt{\sum_{k=1}^3(ref_{k}-samples_{k})^{2}}$']};
-                title(title_noCal_vs_cal,'Interpreter','latex','Parent',this.ax_calib{1});
-                xlabel('calib (not normalized)','FontSize',12,'Parent',this.ax_calib{1});
-                
-                %plot of the errors for each color
-                this.ax_calib{2} = subplot(2,2,3,'Parent',this.color_calibrate);
-                
-                this = plot_RMS_error(this, this.error_cell_pkg{1},this.ax_calib{2});            
-                title('RMS errors: $\sqrt{\frac{1}{3}\sum_{k=1}^3(ref_{k}-samples_{k})^{2}}$',...
-                    'Interpreter','latex','Parent',this.ax_calib{2}); 
-        % ====================== 2nd pic (normalized) + error calculated'
-                this.ax_calib{3} = subplot(2,2,2,'Parent',this.color_calibrate);
-                %rotates images 90 degress so they can fit together, side by
-                %side, in a 4:3 ratio
-                %now original in parallel with calib normalized
-                rot_I_Calib1 = imrotate(this.calibrated_img{2},90);            
-                I_s = imshow([rot_I, rot_I_Calib1],'Parent',this.ax_calib{3});
-                
-                title_noCal_vs_cal=...
-                    {['within distance: $\frac{\sum_{i=1}^{24}\Delta{RGB}}{24}$= ',... 
-                    num2str(this.error_cell_pkg{2}{4})];['where ',...
-                    '$\Delta{RGB = }\sqrt{\sum_{k=1}^3(ref_{k}-samples_{k})^{2}}$']};
-                title(title_noCal_vs_cal,'Interpreter','latex','Parent',this.ax_calib{3});
-                xlabel('calib (normalized)','FontSize',12,'Parent',this.ax_calib{3});
-                
-                %plot of the errors for each color
-                this.ax_calib{4} = subplot(2,2,4,'Parent',this.color_calibrate);
-                
-                this = plot_RMS_error(this, this.error_cell_pkg{2},this.ax_calib{4});            
-                title('RMS errors: $\sqrt{\frac{1}{3}\sum_{k=1}^3(ref_{k}-samples_{k})^{2}}$',...
-                    'Interpreter','latex','Parent',this.ax_calib{4});
+                this = calib_plots(this);
+                % pauses for 1 second while the threads that build the plots
+                pause(2);
+                this = toggle_colorcalib_uifig_visibility(this);
             end
         end
         function this = creat_norm_buttons(this)
-%             I_s2 = imshow([rot_I, rot_I_Calib1],'Parent',ax2);
-%             x = this.color_calibrate.Position(3:4);
-%             %Create normalized_or_not_text
-%             x=round(x(2)/2);
-%             y=round(x(1)/2);
             
             this = create_calib_pics_and_errors(this);
             if this.checker_found
-                this = bring_app_to_center(this,200);
                 this.normalized_or_not_text = uilabel(this.color_calibrate);
                 this.normalized_or_not_text.HorizontalAlignment = 'center';
                 this.normalized_or_not_text.FontSize = 16;
@@ -254,7 +294,7 @@ classdef calibGui  < handle
             this.norm_color_calib = 1;
             this.calibrated_img = this.calibrated_img{2};
             this.transform_3x3_matrix = this.transform_3x3_matrix{2};
-            this.error_cell_pkg = this.error_cell_pkg{2};
+            this.err_pkg = this.err_pkg{2};
             
             this.calib_I_pre_name =...
                 [this.calib_I_pre_name, 'norm_'];
@@ -265,7 +305,7 @@ classdef calibGui  < handle
             this.norm_color_calib = 0;
             this.calibrated_img = this.calibrated_img{1};
             this.transform_3x3_matrix = this.transform_3x3_matrix{1};
-            this.error_cell_pkg = this.error_cell_pkg{1};
+            this.err_pkg = this.err_pkg{1};
             
             this = calibrate_or_restart(this);
         end
@@ -515,22 +555,26 @@ classdef calibGui  < handle
         
         function this = init_error_values(this)
             this.RGB_triplets_plot = this.RGB_ref_values./255;
-            this.color_labels ={'Dark skin'; 'Light skin'; 'Blue sky'; 'Foliage';...
-               'Blue flower'; 'Bluish green'; 'Orange'; 'Purplish blue';...
-               'Moderate red'; 'Purple'; 'Yellow green'; 'Orange yellow';...
-               'Blue'; 'Green'; 'Red'; 'Yellow'; 'Magenta'; 'Cyan'; 'White';...
-               'Neutral'; 'Neutral'; 'Neutral'; 'Neutral'; 'Black'};
+            this.color_labels ={'1. Dark skin'; '2. Light skin';...
+                '3. Blue sky'; '4. Foliage'; '5. Blue flower';...
+                '6. Bluish green'; '7. Orange'; '8. Purplish blue';...
+               '9. Moderate red'; '10. Purple'; '11. Yellow green';...
+               '12. Orange yellow';'13. Blue'; '14. Green'; '15. Red';...
+               '16. Yellow'; '17. Magenta'; '18. Cyan'; '19. White';...
+               '20. Neutral'; '21. Neutral'; '22. Neutral';...
+               '23. Neutral'; '24. Black'};
         end
-        function this = plot_RMS_error(this, error_cell_pkg,ax)
+        function this = plot_RMS_error(this, err_pkg,ax)
             % RMS difference, avg. over RGB
             %=====================================================================
-            x_points = 1:length(error_cell_pkg{1});
-            scatter(1,error_cell_pkg{1}(1,1),100,...
+            
+            x_points = 1:length(err_pkg{1});
+            scatter(1,err_pkg{1}(1,1),100,...
                 this.RGB_triplets_plot(1,:),'filled','Parent',ax);
             hold(ax);
             grid(ax);
             for i=x_points(2:end)
-                scatter(x_points(i), error_cell_pkg{1}(i,1), 100,...
+                scatter(x_points(i), err_pkg{1}(i,1), 100,...
                     this.RGB_triplets_plot(i,:),'filled','Parent',ax);
             end
             title('RMS errors: $\sqrt{\frac{1}{3}\sum_{k=1}^3(ref_{k}-samples_{k})^{2}}$','Interpreter','latex',...
