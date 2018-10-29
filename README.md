@@ -21,10 +21,10 @@ Under the same light conditions the other pictures you want to calibrate were ca
   
     3.4. save calibration matrix for later use as a text file and mat file (Matlab variable-saving file).
 
-4. It calculates RMS error, among other distance measures, from the reference values, original sampled values, and calibrated values.
+4. It calculates RMS error of the RGB values, among other distance measures. It uses reference RGB values from the manufacturer, original  sampled values, and calibrated values.
 
 This is the plot of normalized vs not normalized calibration, with RMS errors for individual colors and total average error for the 24 colors:
 
-![alt text](https://github.com/alexandresoaresilva/auto_color_calibration/blob/master/docs/error_measurements.JPG)
+![alt text](https://github.com/alexandresoaresilva/auto_color_calibration/blob/master/docs/error_measurements_v2.png)
 
 To run the object with the color calibration GUI, try ouy the script test.m.
