@@ -3,7 +3,7 @@
 ONLY COMPATIBLE WITH MATLAB 2018b and beyond (uses axes passed to uifigure, feature not available until that version).
 Using an image of a Macbeth color checker (24 colors):
 
-![alt text](https://github.com/alexandresoaresilva/auto_color_calibration/blob/master/checker_imgs/check46.png)
+![alt text](https://github.com/alexandresoaresilva/auto_color_calibration/blob/master/checker_imgs/check8.png)
 
 Under the same light conditions the other pictures you want to calibrate were captured, this package of scripts:
 
@@ -21,16 +21,10 @@ Under the same light conditions the other pictures you want to calibrate were ca
   
     3.4. save calibration matrix for later use as a text file and mat file (Matlab variable-saving file).
 
-4. It calculates RMS error, among other distance measures, from the original reference values and the calibrated ones.
+4. It calculates RMS error, among other distance measures, from the reference values, original sampled values, and calibrated values.
 
-This is the result of the previous checker image:
-
-![alt text](https://github.com/alexandresoaresilva/auto_color_calibration/blob/master/checker_imgs/calibrated/calib_check46.png)
-
-And this is the errors measureded when the color calibration is run, separated by color in 3 of the measurements:
+This is the plot of normalized vs not normalized calibration, with RMS errors for individual colors and total average error for the 24 colors:
 
 ![alt text](https://github.com/alexandresoaresilva/auto_color_calibration/blob/master/docs/error_measurements.JPG)
 
 To run the object with the color calibration GUI, try ouy the script test.m.
-
-It's fully featured, if rought on the edges.
