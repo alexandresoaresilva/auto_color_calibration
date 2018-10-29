@@ -1,5 +1,7 @@
 % this is the main function; wraps the other ones
-function [calib_img, M] = colorCalib(I_check_from_cam, I_name, norm)
+function [calib_img, M, RGB_ref_values, err_pkg, err_calib_pkg]...
+    = colorCalib(I_check_from_cam, I_name, norm) %this is the function definition
+
 % INPUTS
 %     check_from_cam : Macbeth 6x4 color checker captured in a environment 
 %                     of interest
@@ -12,36 +14,39 @@ function [calib_img, M] = colorCalib(I_check_from_cam, I_name, norm)
 %     M : color calbiration 3x3 matrix. If fed to the function 
 %               calibration_routine with a new image from the same set as
 %               the color checker image, it calibrates it
+%     err_pkg: cell array with 4 different error measurements 
+%     err_calib_pkg: cell array with 4 different error measurements for
+%     calibrated images
     [colorPos, error] = ColorPatchDetect(I_check_from_cam, I_name);
     
     if colorPos
+        %original samples, unmodified image
         RGB_samples = sample_colors_from_checker(I_check_from_cam, colorPos);
-        [M, RGB_ref_values, error_cell_pkg] = getTransformMatrix(RGB_samples, norm);
+        
+        %reference samples from manufacturer
+        [M, RGB_ref_values] = getTransformMatrix(RGB_samples, norm);
+        
+        %Error for difference between unmodified image
+        % and reference values form manufacturer
+        [RMS, abs_dist_per_channel, dist_from_ref, within_distance] =...
+            calculate_error(RGB_ref_values, RGB_samples);
+        err_pkg =...
+            {RMS,abs_dist_per_channel, dist_from_ref, within_distance};
+    
         calib_img = calibration_routine(M, I_check_from_cam);
         
-        normalized = 'not normalized';
-        if norm
-            normalized = 'normalized';
-        end
+        %Error for difference between unmodified image
+        % and reference values form manufacturer
+        RGB_sampCalibrated =...
+            sample_colors_from_checker(calib_img, colorPos);
         
-        %figure('Name','color_calib');
-        plot_errors(error_cell_pkg, RGB_ref_values);
-        subplot(224)
-        rot_I = imrotate(I_check_from_cam,90);
-        rot_I_Calib = imrotate(calib_img,90);
-        imshow([rot_I,rot_I_Calib]);
+        [RMS_calib, abs_dist_per_channel_calib, dist_from_ref_calib,...
+            within_distance_calib] =...
+            calculate_error(RGB_ref_values, RGB_sampCalibrated);
         
-        title_noCal_vs_cal=...
-        {'within distance: $\frac{\sum_{i=1}^{24}\Delta\textmd{RGB}}{24}$';['= ',... 
-        num2str(error_cell_pkg{4})]};
-        title(title_noCal_vs_cal,'Interpreter','latex');
-        xlabel(['calib (', normalized,')'],'FontSize',12);
-        a = gcf;
-        a.Units = 'normalized';
-        a.Position = [0 0 1 1];
-        %pause
-        %close(a);
-        %hold on
+        err_calib_pkg =...
+            {RMS_calib,abs_dist_per_channel_calib, dist_from_ref_calib,...
+            within_distance_calib};
     else
         calib_img = 0;
         M = 0;
@@ -50,7 +55,7 @@ function [calib_img, M] = colorCalib(I_check_from_cam, I_name, norm)
     end
 end
 
-function [M, RGB_ref_values, error_cell_pkg] = getTransformMatrix(RGB_samples, norm)
+function [M, RGB_ref_values] = getTransformMatrix(RGB_samples, norm)
 % INPUTS
 %     check_from_cam : Macbeth 6x4 color checker captured in a environment 
 %                     of interest
@@ -116,9 +121,6 @@ function [M, RGB_ref_values, error_cell_pkg] = getTransformMatrix(RGB_samples, n
         Q_RGB_ref_norm = RGB_ref_values;
     end
     
-    [RMS, abs_dist_per_channel, dist_from_ref, within_distance] =...
-                calculate_error(RGB_ref_values, RGB_samples);
-    error_cell_pkg = {RMS,abs_dist_per_channel, dist_from_ref, within_distance};
     %plot_errors(error_cell_pkg, RGB_ref_values)
     % M: matrix that minimizes the least squares calculation (3x3)
     % M: calculated with inverse penrose; 
@@ -126,6 +128,13 @@ function [M, RGB_ref_values, error_cell_pkg] = getTransformMatrix(RGB_samples, n
     % in Bastani and Funti (2014)
     % result is 3x3 matrix (equivalent to Px = Q)
     M = P_RGB_norm\Q_RGB_ref_norm;
+
+    function RGB_norm = normalize_RGB_vec(RGB_vec)
+        R = RGB_vec(:,1)/sum(RGB_vec);
+        G = RGB_vec(:,2)/sum(RGB_vec);
+        B = RGB_vec(:,3)/sum(RGB_vec);
+        RGB_norm = [R G B];
+    end
 end
 
 function RGB_samples =...
@@ -139,19 +148,6 @@ function RGB_samples =...
 	    avgPix(1,:) = mean(mean(I_check_from_cam(y,x,:)));
 	    RGB_samples(i, :) = avgPix(1,:);
 	end
-end
-
-
-function RGB_norm = normalize_RGB_vec(RGB_vec)
-    R = normalize_color_channel(RGB_vec(:,1),RGB_vec);
-    G = normalize_color_channel(RGB_vec(:,2),RGB_vec);
-    B = normalize_color_channel(RGB_vec(:,3),RGB_vec);
-    RGB_norm = [R G B];
-    function norm_Color_channel =...
-            normalize_color_channel(color_channel,RGB_vec)
-         %norm_Color_channel = color_channel./255;
-         norm_Color_channel = color_channel./sum(RGB_vec);
-    end
 end
 
 function [RMS, abs_dist_per_channel, dist_from_ref, within_distance] =...
@@ -210,6 +206,7 @@ function plot_errors(error_cell_pkg, RGB_ref_values)
     ylabel('RGB');
     %legend(color_labels);
     hold off
+
     subplot(223);  % RMS difference, avg. over RGB
     %dist_from_ref_f = @(ref,samples)sqrt(sum( (ref-samples).^2,2) ); 
     %=====================================================================
