@@ -13,7 +13,8 @@ Under the same light conditions the other pictures you want to calibrate were ca
 2. Calculates a 3x3 transformation matrix through least-squares regression between reference RGA values from the 24 patches and the one sampled from the picture captured with the color checker;
 
 3. You can choose different things to do with the generated matrix: 
-  
+
+![alt text](https://github.com/alexandresoaresilva/auto_color_calibration/blob/master/docs/options_window.JPG)
     3.1. batch process a folder
   
     3.2. color calibrate the captured checker itself
@@ -21,8 +22,6 @@ Under the same light conditions the other pictures you want to calibrate were ca
     3.3. color calibrate a file
   
     3.4. save calibration matrix for later use as a text file and mat file (Matlab variable-saving file).
-
-![alt text](https://github.com/alexandresoaresilva/auto_color_calibration/blob/master/docs/options_window.JPG)
 
 4. It calculates RMS error of the RGB values, among other distance measures. It uses reference RGB values from the manufacturer, original  sampled values, and calibrated values. Below you can see the plot of normalized vs not normalized calibration, with RMS errors for individual colors and total average error for the 24 colors:
 
