@@ -174,7 +174,7 @@ classdef calibGui  < handle
         end
         
         function this = adjust_axes_forRGB_RMS(this,ax,max_y_error)
-            ax.XLim = [0 33];
+            ax.XLim = [0 34];
             ax.XTick = 1:24;
             ax.YTick = 0:5:max_y_error;
             ax.YLim = [0 max_y_error];
@@ -229,7 +229,7 @@ classdef calibGui  < handle
              %first not normalized
             [this.calibrated_img{1}, this.transform_3x3_matrix{1},...
                 this.RGB_ref_values, this.err_pkg{1}, this.err_calib_pkg{1}] =...
-                colorCalib(this.color_calibrate_img, this.img_name, 0);
+                colorCalib(uint8(this.color_calibrate_img), this.img_name, 0);
             %initializes vars for plotting RMS error
             size_matrix = size(this.transform_3x3_matrix{1});
             if ~(size_matrix(1) == 3) && ~(size_matrix(2) == 3)

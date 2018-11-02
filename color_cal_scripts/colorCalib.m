@@ -49,6 +49,9 @@ function [calib_img, M, RGB_ref_values, err_pkg, err_calib_pkg]...
             within_distance_calib};
     else
         calib_img = 0;
+        RGB_ref_values = 0;
+        err_pkg = 0;
+        err_calib_pkg = 0;
         M = 0;
         xlabel('failed to detect. Please try with a different checker pic');
         disp('Please try with a different checker pic');
