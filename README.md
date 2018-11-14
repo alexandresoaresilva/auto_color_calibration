@@ -8,7 +8,7 @@ Using an image of a Macbeth color checker (24 colors):
 ### a run of the app
 Under the same light conditions the other pictures you want to calibrate were captured, this package of scripts:
 
-1. Detects the checker patches and samples colors; 
+1. Detects the checker patches and samples colors;
 
 2. Calculates a 3x3 transformation matrix through least-squares regression between reference RGA values from the 24 patches and the one sampled from the picture captured with the color checker;
 
