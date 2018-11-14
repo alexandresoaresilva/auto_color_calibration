@@ -28,10 +28,9 @@ Under the same light conditions the other pictures you want to calibrate were ca
 
 ![alt text](https://github.com/alexandresoaresilva/auto_color_calibration/blob/master/docs/error_measurements_v2.png)
 
-
 ### modifying the color calibration scripts
 
-If you want to create other color calibration projects based on this one, the scripts that actually execute color calibration are in the **color_cal_scripts** directory. There, you will find:
+If you want to create other color calibration projects based on this one, the scripts that actually execute color calibration are in the **color_cal_scripts**![alt text](https://github.com/alexandresoaresilva/auto_color_calibration/tree/master/color_cal_scripts) directory. There, you will find:
 
 - **ColorPatchDetect.m**:detects patches and returns the vector colorPos, with, well, the positions of the colors on your image of the Macbeth checker.
 
