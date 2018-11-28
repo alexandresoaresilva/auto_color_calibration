@@ -46,6 +46,7 @@ classdef calibGui  < handle
        function this = calibGui(this)
             addpath('color_cal_scripts');
             addpath('checker_imgs');
+            
             currentFolder = pwd;
            % appName = mfilename;
             find_color_cal_open = findall(0, 'Type', 'figure','Name','LS Color Calibration');
@@ -112,8 +113,8 @@ classdef calibGui  < handle
             this.ax_calib{1} = subplot(2,2,1,'Parent',this.window_calib_plots);
             %rotates images 90 degress so they can fit together, side by
             %side, in a 4:3 ratio
-            rot_I = imrotate(this.color_calibrate_img,90);
-            rot_I_Calib1 = imrotate(this.calibrated_img{1},90);            
+            rot_I = imrotate(flip(this.color_calibrate_img,2),90);
+            rot_I_Calib1 = imrotate(flip(this.calibrated_img{1},2),90);            
             I_s = imshow([rot_I, rot_I_Calib1],'Parent',this.ax_calib{1});
 
             title_noCal_vs_cal=...
@@ -146,7 +147,7 @@ classdef calibGui  < handle
             %side, in a 4:3 ratio
             %now original in parallel with calib normalized
             
-            rot_I_Calib1 = imrotate(this.calibrated_img{2},90);            
+            rot_I_Calib1 = imrotate(flip(this.calibrated_img{2},2),90);            
             I_s = imshow([rot_I, rot_I_Calib1],'Parent',this.ax_calib{3});
             title_noCal_vs_cal=...
                 {['within distance: $\frac{\sum_{i=1}^{24}\Delta{RGB}}{24}$= ',... 
@@ -208,6 +209,8 @@ classdef calibGui  < handle
             if isvalid(this.color_calibrate)
                 delete(this.color_calibrate);
                 delete(this.window_calib_plots);
+                rmpath('checker_imgs');
+                rmpath('color_cal_scripts');
             end
         end
         % Button pushed function: openfileButton

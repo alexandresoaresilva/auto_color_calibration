@@ -25,7 +25,6 @@ function [calib_img, M, RGB_ref_values, err_pkg, err_calib_pkg]...
         
         %reference samples from manufacturer
         [M, RGB_ref_values] = getTransformMatrix(RGB_samples, norm);
-        
         %Error for difference between unmodified image
         % and reference values form manufacturer
         [RMS, abs_dist_per_channel, dist_from_ref, within_distance] =...
