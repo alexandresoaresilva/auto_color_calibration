@@ -10,7 +10,7 @@ Under the same light conditions the other pictures you want to calibrate were ca
 
 1. Detects the checker patches and samples colors;
 
-2. Calculates a 3x3 transformation matrix through least-squares regression between reference RGA values from the 24 patches and the one sampled from the picture captured with the color checker;
+2. Calculates a 3x3 transformation matrix through least-squares regression between reference RGB values from the 24 patches and the one sampled from the picture captured with the color checker;
 
 3. You can choose different things to do with the generated matrix: 
 
